@@ -1,33 +1,45 @@
-const express = require('express');
-const fetch = require('node-fetch');
+const express = require("express");
+const fetch = require("node-fetch");
+
 const app = express();
-require('dotenv').config();
+const port = 8080;
+
+// Fetch environment variables
+const webhookUrl = process.env.WEBHOOK_URL;
+const authToken = process.env.AUTH_TOKEN;
 
 app.use(express.json());
 
-const DISCORD_WEBHOOK = process.env.WEBHOOK_URL;
-const AUTH_TOKEN = process.env.AUTH_TOKEN;
+// Handle the POST request
+app.post("/log", (req, res) => {
+    const { token, content, embeds } = req.body;
 
-app.post('/log', async (req, res) => {
-    const { content, embeds, token } = req.body;
-
-    if (token !== AUTH_TOKEN) {
-        return res.status(403).json({ error: 'Invalid token.' });
+    // Check if the token matches the one stored in the environment
+    if (token !== authToken) {
+        return res.status(403).send("Forbidden: Invalid token.");
     }
 
-    try {
-        await fetch(DISCORD_WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content, embeds })
+    // Send the webhook
+    fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content, embeds }),
+    })
+        .then((response) => {
+            if (response.ok) {
+                return res.status(200).send("Webhook sent successfully!");
+            } else {
+                return res.status(500).send("Failed to send webhook.");
+            }
+        })
+        .catch((error) => {
+            return res.status(500).send(`Error: ${error.message}`);
         });
-
-        return res.status(200).json({ status: 'Webhook sent successfully' });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Failed to send webhook.' });
-    }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
+// Start the server
+app.listen(port, () => {
+    console.log(`Proxy running on port ${port}`);
+});
